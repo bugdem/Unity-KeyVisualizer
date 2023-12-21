@@ -24,6 +24,18 @@ namespace GameEngine.Util
 		}
 	}
 
+	public struct MouseKeyEventValue
+	{
+		public KeyEventType EventType;
+		public int ButtonIndex;
+
+		public MouseKeyEventValue(KeyEventType eventType, int buttonIndex)
+		{
+			EventType = eventType;
+			ButtonIndex = buttonIndex;
+		}
+	}
+
 	public static class KeyUtil
 	{
 		static readonly KeyCode[] _keyCodes =
@@ -31,6 +43,8 @@ namespace GameEngine.Util
 				.Cast<KeyCode>()
 				.Where(k => k < KeyCode.Mouse0)
 				.ToArray();
+
+		static readonly int[] _mouseKeyCodes = new int[] { 0, 1, 2 };
 
 		public static bool IsAnyKeyDown(params KeyCode[] interestingCodes)
 		{
@@ -76,6 +90,19 @@ namespace GameEngine.Util
 					yield return new KeyEventValue(KeyEventType.KeyPress, _keyCodes[i]);
 				else if (Input.GetKeyUp(_keyCodes[i]))
 					yield return new KeyEventValue(KeyEventType.KeyUp, _keyCodes[i]);
+			}
+		}
+
+		public static IEnumerable<MouseKeyEventValue> GetCurrentMouseKeysAllEvent()
+		{
+			for (int i = 0; i < _mouseKeyCodes.Length; i++)
+			{
+				if (Input.GetMouseButtonDown(_mouseKeyCodes[i]))
+					yield return new MouseKeyEventValue(KeyEventType.KeyDown, _mouseKeyCodes[i]);
+				else if (Input.GetMouseButton(_mouseKeyCodes[i]))
+					yield return new MouseKeyEventValue(KeyEventType.KeyPress, _mouseKeyCodes[i]);
+				else if (Input.GetMouseButtonUp(_mouseKeyCodes[i]))
+					yield return new MouseKeyEventValue(KeyEventType.KeyUp, _mouseKeyCodes[i]);
 			}
 		}
 	}

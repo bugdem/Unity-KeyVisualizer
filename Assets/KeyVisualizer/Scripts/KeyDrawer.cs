@@ -1,6 +1,8 @@
 using GameEngine.Util;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.UIElements;
@@ -14,7 +16,13 @@ namespace GameEngine.Core
 		public float PressTime;
 	}
 
-    public class KeyDrawer : MonoBehaviour
+	public class MouseKeyPressVisual
+	{
+		public int ButtonIndex;
+		public float PressTime;
+	}
+
+	public class KeyDrawer : MonoBehaviour
     {
 		[SerializeField] private RawImage _keyUIPrefab;
 		[SerializeField] private Transform _visualContainer;
@@ -24,11 +32,14 @@ namespace GameEngine.Core
 		private const string _resourcesKeyPath = "Keys/";
 		// Holds keys that are pressed with press time.
 		private List<KeyPressVisual> _keysPressed = new List<KeyPressVisual>();
+		private List<MouseKeyPressVisual> _mouseKeyPressed = new List<MouseKeyPressVisual>();
+		private RawImage _mouseKeyVisual = null;
 		private bool _needsRedraw = false;
 
 		private void Awake()
 		{
 			KeyListener.Instance.KeyGenericEvent.Register(OnKeyGenericTriggered);
+			KeyListener.Instance.MouseKeyGenericEvent.Register(OnMouseKeyGenericTriggered);
 		}
 
 		private void Update()
@@ -76,6 +87,56 @@ namespace GameEngine.Core
 			}
 		}
 
+		private void OnMouseKeyGenericTriggered(MouseKeyEventValue mouseKeyEvent)
+		{
+			if (mouseKeyEvent.EventType == KeyEventType.KeyDown)
+			{
+				Debug.Log("Mouse Down: " + mouseKeyEvent.ButtonIndex);
+
+				var mouseKeyPressed = new MouseKeyPressVisual
+				{
+					ButtonIndex = mouseKeyEvent.ButtonIndex,
+					PressTime = Time.time
+				};
+
+				_mouseKeyPressed.Add(mouseKeyPressed);
+
+				CreateMouseVisualIfNeeded();
+			}
+			else if (mouseKeyEvent.EventType == KeyEventType.KeyPress)
+			{
+				Debug.Log("Mouse Press: " + mouseKeyEvent.ButtonIndex);
+			}
+			else if (mouseKeyEvent.EventType == KeyEventType.KeyUp)
+			{
+				Debug.Log("Mouse Up: " + mouseKeyEvent.ButtonIndex);
+
+				var index = _mouseKeyPressed.FindIndex(x => x.ButtonIndex == mouseKeyEvent.ButtonIndex);
+				if (index >= 0)
+				{
+					var keyPressed = _mouseKeyPressed[index];
+					_mouseKeyPressed.RemoveAt(index);
+
+					CreateMouseVisualIfNeeded();
+				}
+			}
+		}
+
+		private void CreateMouseVisualIfNeeded()
+		{
+			if (_mouseKeyVisual != null)
+				Destroy(_mouseKeyVisual.gameObject);
+
+			if (_mouseKeyPressed.Count > 0)
+			{
+				_mouseKeyVisual = Instantiate(_keyUIPrefab, _visualContainer);
+				_mouseKeyVisual.texture = Resources.Load<Texture2D>(GetMouseKeyResourcePath(_mouseKeyPressed.Select(x => x.ButtonIndex).ToArray()));
+				_mouseKeyVisual.SetNativeSize(_keyScaleRatio);
+			}
+
+			RequestRedraw();
+		}
+
 		private void RequestRedraw()
 		{
 			_needsRedraw = true;
@@ -87,6 +148,18 @@ namespace GameEngine.Core
 
 			float lastEndPositionX = 0;
 			float keySpacing = 0;
+
+			if (_mouseKeyVisual != null)
+			{
+				var visualRT = _mouseKeyVisual.GetComponent<RectTransform>();
+				Vector2 newLocalPosition = new Vector2(lastEndPositionX - visualRT.sizeDelta.x * .5f - keySpacing, visualRT.sizeDelta.y * .5f);
+
+				visualRT.transform.localPosition = newLocalPosition;
+
+				lastEndPositionX -= visualRT.sizeDelta.x + keySpacing;
+				keySpacing = _keySpacing * _keyScaleRatio;
+			}
+
 			for (int index = 0; index < _keysPressed.Count; index++)
 			{
 				var keyPressed = _keysPressed[index];
@@ -108,6 +181,18 @@ namespace GameEngine.Core
 		protected virtual string GetKeyResourceName(KeyCode key)
 		{
 			string resourceName = "KEY_" + key.ToString().ToUpper();
+			return resourceName;
+		}
+
+		protected virtual string GetMouseKeyResourcePath(params int[] buttonIndex)
+		{
+			return _resourcesKeyPath + GetMouseKeyResourceName(buttonIndex);
+		}
+
+		protected virtual string GetMouseKeyResourceName(params int[] buttonIndex)
+		{
+			var orderedIndexes = buttonIndex.OrderBy(i => i).ToList();
+			string resourceName = "Mouse_" + string.Join('_', orderedIndexes);
 			return resourceName;
 		}
 

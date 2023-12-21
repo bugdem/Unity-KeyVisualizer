@@ -25,27 +25,44 @@ namespace GameEngine.Core
 		}
 	}
 
+	/*
 	[Serializable]
 	public class KeyCodeEvent : UnityEvent<KeyCode> { }
+	*/
 
 	[Serializable]
 	public class KeyCodeGenericEvent : UnityGenericEvent<KeyEventValue> { }
+
+	[Serializable]
+	public class MouseKeyCodeGenericEvent : UnityGenericEvent<MouseKeyEventValue> { }
 
 	[DefaultExecutionOrder(-100)]
 	public class KeyListener : Singleton<KeyListener>
     {
 		[SerializeField] private KeyCodeGenericEvent _keyGenericEvent;
+		[SerializeField] private MouseKeyCodeGenericEvent _mouseKeyGenericEvent;
 
 		// To reduce for loop for keys, KeyCodeGenericEvent is created.
 		public KeyCodeGenericEvent KeyGenericEvent => _keyGenericEvent;
+		public MouseKeyCodeGenericEvent MouseKeyGenericEvent => _mouseKeyGenericEvent;
 
 		private void Update()
 		{
 			if (KeyGenericEvent.EventCount > 0)
-				Output(KeyUtil.GetCurrentKeysAllEvent(), KeyGenericEvent);
+				OutputKey(KeyUtil.GetCurrentKeysAllEvent(), KeyGenericEvent);
+
+			if (MouseKeyGenericEvent.EventCount > 0)
+				OutputMouseKey(KeyUtil.GetCurrentMouseKeysAllEvent(), MouseKeyGenericEvent);
 		}
 
-		void Output(IEnumerable<KeyEventValue> keys, KeyCodeGenericEvent output)
+		private void OutputKey(IEnumerable<KeyEventValue> keys, KeyCodeGenericEvent output)
+		{
+			if (keys == null) return;
+			foreach (var key in keys)
+				output.Invoke(key);
+		}
+
+		private void OutputMouseKey(IEnumerable<MouseKeyEventValue> keys, MouseKeyCodeGenericEvent output)
 		{
 			if (keys == null) return;
 			foreach (var key in keys)
